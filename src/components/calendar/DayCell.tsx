@@ -2,10 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRID_PADDING = 8;
-const GAP = 1.5;
-const CELL_SIZE = Math.floor((SCREEN_WIDTH - GRID_PADDING * 2 - GAP * 6) / 7);
+
 
 interface DayCellProps {
   day: number | null;
@@ -62,11 +59,12 @@ export default function DayCell({
 
 const styles = StyleSheet.create({
   cell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
+    flex: 1,
+    aspectRatio: 1,
     borderRadius: 3,
     overflow: 'hidden',
     position: 'relative',
+    margin: 1,
   },
   photo: {
     width: '100%',

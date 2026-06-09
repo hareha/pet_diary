@@ -1,88 +1,165 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Paths, File, Directory } from 'expo-file-system';
-import type { DiaryEntry } from '@/types/diary';
+import { supabase } from '@/lib/supabase';
 
-const DIARY_STORAGE_KEY = 'kyvikos_diaries';
-const IMAGE_DIR_NAME = 'diary_images';
-
-function getImageDir(): Directory {
-  return new Directory(Paths.document, IMAGE_DIR_NAME);
+export interface DiaryEntryDB {
+  id?: string;
+  user_id?: string;
+  pet_id?: string | null;
+  date: string;
+  original_image_url?: string | null;
+  styled_image_url?: string | null;
+  thumbnail_url?: string | null;
+  thumbnail_crop?: any | null;
+  image_style: string;
+  image_style_target: string;
+  diary_text: string;
+  mood?: string | null;
+  weather?: string | null;
+  situation?: string[];
+  tone?: string | null;
+  memo?: string | null;
+  ai_analysis?: any | null;
+  keywords?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
-export async function saveImageLocally(uri: string, date: string): Promise<string> {
-  const dir = getImageDir();
-  if (!dir.exists) {
-    dir.create();
+async function getUserId(): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id ?? null;
+  } catch {
+    return null;
   }
-  const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
-  const filename = `${date}_${Date.now()}.${ext}`;
-  const sourceFile = new File(uri);
-  const destFile = new File(dir, filename);
-  sourceFile.copy(destFile);
-  return destFile.uri;
 }
 
-async function getAllDiaries(): Promise<Record<string, DiaryEntry>> {
-  const raw = await AsyncStorage.getItem(DIARY_STORAGE_KEY);
-  if (!raw) return {};
-  return JSON.parse(raw) as Record<string, DiaryEntry>;
+async function requireUserId(): Promise<string> {
+  const id = await getUserId();
+  if (!id) throw new Error('로그인이 필요합니다.');
+  return id;
 }
 
-async function setAllDiaries(diaries: Record<string, DiaryEntry>): Promise<void> {
-  await AsyncStorage.setItem(DIARY_STORAGE_KEY, JSON.stringify(diaries));
+export async function saveDiaryEntry(entry: {
+  date: string;
+  originalImageUri?: string;
+  styledImageUri?: string | null;
+  thumbnailUri?: string | null;
+  thumbnailCrop?: any;
+  imageStyle?: string;
+  imageStyleTarget?: string;
+  diaryText: string;
+  mood?: string;
+  weather?: string;
+  situation?: string[];
+  tone?: string;
+  memo?: string;
+  aiAnalysis?: any;
+  keywords?: string[];
+}): Promise<void> {
+  const userId = await requireUserId();
+
+  const row: any = {
+    user_id: userId,
+    date: entry.date,
+    original_image_url: entry.originalImageUri || null,
+    styled_image_url: entry.styledImageUri || null,
+    thumbnail_url: entry.thumbnailUri || null,
+    thumbnail_crop: entry.thumbnailCrop || null,
+    image_style: entry.imageStyle || 'original',
+    image_style_target: entry.imageStyleTarget || 'both',
+    diary_text: entry.diaryText,
+    mood: entry.mood || null,
+    weather: entry.weather || null,
+    situation: entry.situation || [],
+    tone: entry.tone || 'emotional',
+    memo: entry.memo || null,
+    ai_analysis: entry.aiAnalysis || null,
+    keywords: entry.keywords || [],
+  };
+
+  const { error } = await supabase
+    .from('diary_entries')
+    .upsert(row, { onConflict: 'user_id,date' });
+
+  if (error) {
+    console.error('일기 저장 에러:', error);
+    throw new Error(`일기 저장 실패: ${error.message}`);
+  }
 }
 
-export async function saveDiaryEntry(entry: DiaryEntry): Promise<void> {
-  const diaries = await getAllDiaries();
-  diaries[entry.date] = entry;
-  await setAllDiaries(diaries);
-}
+export async function getDiaryEntry(date: string): Promise<DiaryEntryDB | null> {
+  const userId = await getUserId();
+  if (!userId) return null;
 
-export async function getDiaryEntry(date: string): Promise<DiaryEntry | null> {
-  const diaries = await getAllDiaries();
-  return diaries[date] ?? null;
+  const { data, error } = await supabase
+    .from('diary_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .maybeSingle();
+
+  if (error) {
+    console.error('일기 조회 에러:', error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function getDiaryEntriesForMonth(
   year: number,
   month: number,
-): Promise<Record<string, DiaryEntry>> {
-  const diaries = await getAllDiaries();
-  const prefix = `${year}-${String(month).padStart(2, '0')}`;
-  const result: Record<string, DiaryEntry> = {};
-  for (const [date, entry] of Object.entries(diaries)) {
-    if (date.startsWith(prefix)) {
-      result[date] = entry;
-    }
+): Promise<Record<string, DiaryEntryDB>> {
+  const userId = await getUserId();
+  if (!userId) return {};
+
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('diary_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('월별 조회 에러:', error);
+    return {};
+  }
+
+  const result: Record<string, DiaryEntryDB> = {};
+  for (const entry of data || []) {
+    result[entry.date] = entry;
   }
   return result;
 }
 
 export async function deleteDiaryEntry(date: string): Promise<void> {
-  const diaries = await getAllDiaries();
-  const entry = diaries[date];
-  if (entry) {
-    // Delete stored images
-    try {
-      const origFile = new File(entry.originalImageUri);
-      if (origFile.exists) origFile.delete();
-    } catch {
-      // ignore
-    }
-    if (entry.styledImageUri) {
-      try {
-        const styledFile = new File(entry.styledImageUri);
-        if (styledFile.exists) styledFile.delete();
-      } catch {
-        // ignore
-      }
-    }
-    delete diaries[date];
-    await setAllDiaries(diaries);
+  const userId = await requireUserId();
+
+  const { error } = await supabase
+    .from('diary_entries')
+    .delete()
+    .eq('user_id', userId)
+    .eq('date', date);
+
+  if (error) {
+    console.error('일기 삭제 에러:', error);
+    throw new Error(`일기 삭제 실패: ${error.message}`);
   }
 }
 
 export async function hasDiaryForDate(date: string): Promise<boolean> {
-  const diaries = await getAllDiaries();
-  return date in diaries;
+  const userId = await getUserId();
+
+  const { count, error } = await supabase
+    .from('diary_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('date', date);
+
+  if (error) return false;
+  return (count ?? 0) > 0;
 }

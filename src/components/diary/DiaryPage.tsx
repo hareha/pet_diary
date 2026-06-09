@@ -58,7 +58,8 @@ export default function DiaryPage({
   const weatherLabel = WEATHER_LABELS[weather] || weather;
 
   // Split diary text into lines (remove hashtag line)
-  const lines = diaryText.split('\n').filter((l) => !l.startsWith('#'));
+  const safeText = diaryText || '';
+  const lines = safeText.split('\n').filter((l) => !l.startsWith('#'));
   const mainText = lines.join(' ').trim();
 
   // Break text into chunks for grid cells

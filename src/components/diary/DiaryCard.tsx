@@ -9,10 +9,11 @@ interface DiaryCardProps {
 }
 
 export default function DiaryCard({ entry, onPress }: DiaryCardProps) {
-  const previewText =
-    entry.diaryText.length > 80
-      ? entry.diaryText.slice(0, 80) + '...'
-      : entry.diaryText;
+  const text = entry.diary_text || '';
+  const previewText = text.length > 80 ? text.slice(0, 80) + '...' : text;
+
+  const imageUrl = entry.original_image_url;
+  const tags = entry.keywords || entry.situation || [];
 
   // Format date nicely
   const [, m, d] = entry.date.split('-');
@@ -20,18 +21,22 @@ export default function DiaryCard({ entry, onPress }: DiaryCardProps) {
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <Image
-        source={{ uri: entry.originalImageUri }}
-        style={styles.thumbnail}
-        contentFit="cover"
-      />
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.thumbnail}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={[styles.thumbnail, { backgroundColor: '#F5EDE4' }]} />
+      )}
       <View style={styles.content}>
         <Text style={styles.dateText}>{dateLabel}</Text>
         <Text style={styles.diaryPreview} numberOfLines={3}>
           {previewText}
         </Text>
         <View style={styles.tagsRow}>
-          {entry.keywords.slice(0, 3).map((kw) => (
+          {tags.slice(0, 3).map((kw) => (
             <View key={kw} style={styles.tag}>
               <Text style={styles.tagText}>#{kw}</Text>
             </View>

@@ -78,7 +78,7 @@ export default function CalendarGrid({
                 date={dateStr}
                 isToday={dateStr === today}
                 isSelected={dateStr === selectedDate}
-                thumbnailUri={entry?.originalImageUri}
+                thumbnailUri={entry?.thumbnail_url || entry?.original_image_url}
                 onPress={onSelectDate}
               />
             );
@@ -95,14 +95,13 @@ const styles = StyleSheet.create({
   },
   labelRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-    paddingHorizontal: 0,
+    marginBottom: 2,
   },
   labelCell: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 4,
+    marginHorizontal: 1,
   },
   labelText: {
     fontSize: 11,
@@ -117,7 +116,6 @@ const styles = StyleSheet.create({
   },
   weekRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 1.5,
+    marginBottom: 0,
   },
 });
