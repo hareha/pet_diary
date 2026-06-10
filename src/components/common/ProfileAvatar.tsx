@@ -37,7 +37,7 @@ export default function ProfileAvatar({
       )}
       {editable && (
         <View style={styles.editBadge}>
-          <Text style={styles.editBadgeText}></Text>
+          <Text style={styles.editBadgeText}>📷</Text>
         </View>
       )}
     </TouchableOpacity>

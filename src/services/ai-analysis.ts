@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import type { AiAnalysisResult } from '@/types/user';
 import { saveAiLog } from './ai-logger';
 
-const GEMINI_API_KEY = 'REDACTED';
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
