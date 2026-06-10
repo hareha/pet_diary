@@ -1,131 +1,83 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 /**
- * 캔버스 기반 크레파스/그림일기 필터
- * 웹: Canvas API로 즉시 처리
- * 네이티브: 추후 expo-gl 등으로 확장 가능
+ * Gemini AI를 사용해 사진을 크레파스 그림일기 스타일로 변환
  */
 export async function transformToCrayon(imageUri: string): Promise<string> {
-  if (Platform.OS === 'web') {
-    return applyWebCrayonFilter(imageUri);
-  } else {
-    // 네이티브에서는 현재 원본 반환 (추후 expo-gl로 구현)
-    return imageUri;
+  const { base64, mimeType } = await imageToBase64(imageUri);
+
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-exp',
+    generationConfig: {
+      // @ts-ignore - responseModalities is supported but not yet in all type definitions
+      responseModalities: ['IMAGE', 'TEXT'],
+    },
+  });
+
+  const prompt = `이 사진을 어린이 크레파스 그림일기 스타일로 다시 그려주세요.
+
+규칙:
+1. 크레파스(크레용)로 두껍게 색칠한 느낌으로 변환
+2. 색감은 따뜻하고 밝은 파스텔톤
+3. 선은 굵고 약간 삐뚤빠뚤하게 (어린이가 그린 느낌)
+4. 배경도 크레파스로 칠한 느낌으로
+5. 사진 속 주요 피사체(동물, 사람 등)의 형태는 유지하되 귀엽게 단순화
+6. 스케치북이나 도화지 위에 그린 것처럼 약간의 종이 질감
+7. 이미지만 출력하고 텍스트는 포함하지 마세요`;
+
+  const result = await model.generateContent([
+    prompt,
+    { inlineData: { data: base64, mimeType } },
+  ]);
+
+  // 응답에서 이미지 추출
+  const response = result.response;
+  const candidates = response.candidates;
+  if (!candidates || candidates.length === 0) {
+    throw new Error('AI가 이미지를 생성하지 못했습니다.');
   }
+
+  const parts = candidates[0].content.parts;
+  for (const part of parts) {
+    if (part.inlineData) {
+      const imgMime = part.inlineData.mimeType || 'image/png';
+      const imgData = part.inlineData.data;
+      return `data:${imgMime};base64,${imgData}`;
+    }
+  }
+
+  throw new Error('AI 응답에서 이미지를 찾을 수 없습니다.');
 }
 
 /**
- * 웹 Canvas 기반 크레파스 효과
- * 1. 색상 수 축소 (포스터화)
- * 2. 부드러운 블러 (크레파스 느낌)
- * 3. 노이즈 텍스처 (종이 질감)
- * 4. 따뜻한 색조 오버레이
- * 5. 엣지 강조 (크레파스 선 느낌)
+ * 이미지 URI를 base64로 변환
  */
-function applyWebCrayonFilter(imageUri: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const size = 512;
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d')!;
-        
-        // 정사각형으로 크롭
-        const srcSize = Math.min(img.width, img.height);
-        const sx = (img.width - srcSize) / 2;
-        const sy = (img.height - srcSize) / 2;
-        
-        canvas.width = size;
-        canvas.height = size;
-
-        // 1단계: 이미지 그리기 (약간 블러)
-        ctx.filter = 'blur(1.2px) saturate(1.4) contrast(1.1)';
-        ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
-        ctx.filter = 'none';
-
-        // 2단계: 포스터화 (색상 수 축소)
-        const imageData = ctx.getImageData(0, 0, size, size);
-        const data = imageData.data;
-        const levels = 8; // 색상 단계
-        const step = 255 / levels;
-
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.round(data[i]! / step) * step;     // R
-          data[i + 1] = Math.round(data[i + 1]! / step) * step; // G
-          data[i + 2] = Math.round(data[i + 2]! / step) * step; // B
-          
-          // 따뜻한 톤 추가
-          data[i] = Math.min(255, data[i]! + 12);     // R +
-          data[i + 2] = Math.max(0, data[i + 2]! - 8); // B -
-        }
-        ctx.putImageData(imageData, 0, 0);
-
-        // 3단계: 노이즈 텍스처 (종이 질감)
-        const noiseData = ctx.getImageData(0, 0, size, size);
-        const nd = noiseData.data;
-        for (let i = 0; i < nd.length; i += 4) {
-          const noise = (Math.random() - 0.5) * 25;
-          nd[i] = Math.min(255, Math.max(0, nd[i]! + noise));
-          nd[i + 1] = Math.min(255, Math.max(0, nd[i + 1]! + noise));
-          nd[i + 2] = Math.min(255, Math.max(0, nd[i + 2]! + noise));
-        }
-        ctx.putImageData(noiseData, 0, 0);
-
-        // 4단계: 엣지 오버레이 (크레파스 윤곽선 느낌)
-        const edgeCanvas = document.createElement('canvas');
-        edgeCanvas.width = size;
-        edgeCanvas.height = size;
-        const ectx = edgeCanvas.getContext('2d')!;
-        ectx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
-        
-        // 엣지를 위한 소벨 필터 간소화
-        const edgeData = ectx.getImageData(0, 0, size, size);
-        const ed = edgeData.data;
-        const edgeResult = new Uint8ClampedArray(ed.length);
-        
-        for (let y = 1; y < size - 1; y++) {
-          for (let x = 1; x < size - 1; x++) {
-            const idx = (y * size + x) * 4;
-            // 간소화된 엣지 감지
-            const left = (ed[(y * size + x - 1) * 4]! + ed[(y * size + x - 1) * 4 + 1]! + ed[(y * size + x - 1) * 4 + 2]!) / 3;
-            const right = (ed[(y * size + x + 1) * 4]! + ed[(y * size + x + 1) * 4 + 1]! + ed[(y * size + x + 1) * 4 + 2]!) / 3;
-            const top = (ed[((y - 1) * size + x) * 4]! + ed[((y - 1) * size + x) * 4 + 1]! + ed[((y - 1) * size + x) * 4 + 2]!) / 3;
-            const bottom = (ed[((y + 1) * size + x) * 4]! + ed[((y + 1) * size + x) * 4 + 1]! + ed[((y + 1) * size + x) * 4 + 2]!) / 3;
-            
-            const edge = Math.abs(left - right) + Math.abs(top - bottom);
-            edgeResult[idx] = edgeResult[idx + 1] = edgeResult[idx + 2] = Math.min(255, edge * 2);
-            edgeResult[idx + 3] = 255;
-          }
-        }
-
-        // 엣지를 메인 캔버스에 반전 합성 (어두운 윤곽선)
-        const finalData = ctx.getImageData(0, 0, size, size);
-        const fd = finalData.data;
-        for (let i = 0; i < fd.length; i += 4) {
-          const edgeVal = edgeResult[i]! / 255;
-          const darken = 1 - edgeVal * 0.35;
-          fd[i] = Math.round(fd[i]! * darken);
-          fd[i + 1] = Math.round(fd[i + 1]! * darken);
-          fd[i + 2] = Math.round(fd[i + 2]! * darken);
-        }
-        ctx.putImageData(finalData, 0, 0);
-
-        // 5단계: 최종 부드러운 블러
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = size;
-        finalCanvas.height = size;
-        const fctx = finalCanvas.getContext('2d')!;
-        fctx.filter = 'blur(0.5px)';
-        fctx.drawImage(canvas, 0, 0);
-
-        resolve(finalCanvas.toDataURL('image/jpeg', 0.9));
-      } catch (err) {
-        reject(err);
-      }
-    };
-    img.onerror = () => reject(new Error('이미지 로드 실패'));
-    img.src = imageUri;
-  });
+async function imageToBase64(imageUri: string): Promise<{ base64: string; mimeType: string }> {
+  if (Platform.OS === 'web') {
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1]!;
+        const mimeType = dataUrl.split(';')[0]!.split(':')[1]!;
+        resolve({ base64, mimeType });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } else {
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const ext = imageUri.split('.').pop()?.toLowerCase() || 'jpeg';
+    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    return { base64, mimeType };
+  }
 }
