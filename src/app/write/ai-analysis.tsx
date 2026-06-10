@@ -13,6 +13,7 @@ const WRITE_STEPS = ['사진', 'AI분석', '상황', '스타일', '썸네일', '
 export default function AiAnalysisScreen() {
   const { imageUri, aiAnalysis, setAiAnalysis } = useWrite();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (imageUri && !aiAnalysis) {
@@ -25,18 +26,19 @@ export default function AiAnalysisScreen() {
   async function runAnalysis() {
     if (!imageUri) return;
     setLoading(true);
+    setError(null);
     try {
       const result = await analyzeImage(imageUri);
       setAiAnalysis(result);
-    } catch {
-      // fallback
-      setAiAnalysis({
-        pet_detected: true,
-        pet_type: '반려동물',
-        action: '사진 속에 있어요',
-        expression: '자연스러운 표정',
-        background: '일상 속 한 장면',
-      });
+    } catch (err: any) {
+      const msg = err.message || '';
+      if (msg.includes('429') || msg.includes('depleted') || msg.includes('RESOURCE_EXHAUSTED')) {
+        setError('API 크레딧이 소진되었어요. Google AI Studio에서 크레딧을 충전해주세요.');
+      } else if (msg.includes('401') || msg.includes('authentication')) {
+        setError('API 키가 유효하지 않아요. 설정을 확인해주세요.');
+      } else {
+        setError(`AI 분석에 실패했어요: ${msg || '알 수 없는 오류'}`);
+      }
     }
     setLoading(false);
   }
@@ -63,28 +65,41 @@ export default function AiAnalysisScreen() {
           <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" />
         )}
 
-        <View style={styles.resultCard}>
-          {aiAnalysis?.pet_detected && (
-            <ResultRow label="반려동물 인식" value={aiAnalysis.pet_type || '인식됨'} emoji="" />
-          )}
-          {aiAnalysis?.action && (
-            <ResultRow label="행동 / 표정" value={`${aiAnalysis.action}${aiAnalysis.expression ? ` (${aiAnalysis.expression})` : ''}`} emoji="" />
-          )}
-          {aiAnalysis?.location && (
-            <ResultRow label="장소" value={aiAnalysis.location} emoji="" />
-          )}
-          {aiAnalysis?.background && (
-            <ResultRow label="배경 / 분위기" value={aiAnalysis.background} emoji="" />
-          )}
-          {aiAnalysis?.family_members && aiAnalysis.family_members.length > 0 && (
-            <ResultRow label="함께 찍힌 가족" value={aiAnalysis.family_members.join(', ')} emoji="" />
-          )}
-        </View>
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorEmoji}>⚠️</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.errorButtons}>
+              <Button title="다시 시도" onPress={runAnalysis} variant="secondary" style={styles.btn} />
+              <Button title="건너뛰기 →" onPress={() => router.push('/write/situation')} style={styles.btn} />
+            </View>
+          </View>
+        ) : (
+          <>
+            <View style={styles.resultCard}>
+              {aiAnalysis?.pet_detected && (
+                <ResultRow label="반려동물 인식" value={aiAnalysis.pet_type || '인식됨'} emoji="" />
+              )}
+              {aiAnalysis?.action && (
+                <ResultRow label="행동 / 표정" value={`${aiAnalysis.action}${aiAnalysis.expression ? ` (${aiAnalysis.expression})` : ''}`} emoji="" />
+              )}
+              {aiAnalysis?.location && (
+                <ResultRow label="장소" value={aiAnalysis.location} emoji="" />
+              )}
+              {aiAnalysis?.background && (
+                <ResultRow label="배경 / 분위기" value={aiAnalysis.background} emoji="" />
+              )}
+              {aiAnalysis?.family_members && aiAnalysis.family_members.length > 0 && (
+                <ResultRow label="함께 찍힌 가족" value={aiAnalysis.family_members.join(', ')} emoji="" />
+              )}
+            </View>
 
-        <View style={styles.buttons}>
-          <Button title="다시 분석" onPress={runAnalysis} variant="secondary" style={styles.btn} />
-          <Button title="다음 →" onPress={() => router.push('/write/situation')} style={styles.btn} />
-        </View>
+            <View style={styles.buttons}>
+              <Button title="다시 분석" onPress={runAnalysis} variant="secondary" style={styles.btn} />
+              <Button title="다음 →" onPress={() => router.push('/write/situation')} style={styles.btn} />
+            </View>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -110,6 +125,13 @@ const styles = StyleSheet.create({
   loadingSubtext: { fontSize: 14, fontFamily: 'Gaegu_400Regular', color: '#B0A090', marginTop: 8 },
   title: { fontSize: 24, fontFamily: 'Gaegu_700Bold', color: '#5D4E3C', textAlign: 'center', marginVertical: 16 },
   image: { width: '100%', height: 180, borderRadius: 14, marginBottom: 16, backgroundColor: '#F5EDE4' },
+  errorCard: {
+    backgroundColor: '#FFF0E5', borderRadius: 14,
+    borderWidth: 1.5, borderColor: '#E8A070', padding: 20, alignItems: 'center',
+  },
+  errorEmoji: { fontSize: 32, marginBottom: 12 },
+  errorText: { fontSize: 15, color: '#A0522D', fontFamily: 'Gaegu_700Bold', textAlign: 'center', lineHeight: 22, marginBottom: 16 },
+  errorButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   resultCard: {
     backgroundColor: '#FFFFF8', borderRadius: 14,
     borderWidth: 1.5, borderColor: '#E8DDD0', padding: 16, gap: 12,
@@ -122,3 +144,4 @@ const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', gap: 12, marginTop: 20 },
   btn: { flex: 1 },
 });
+
