@@ -1,32 +1,35 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform, Alert, Dimensions } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  Dimensions, Platform,
+} from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useWrite } from '@/contexts/write-context';
-import ChipSelector from '@/components/common/ChipSelector';
-import Button from '@/components/common/Button';
-import ProgressSteps from '@/components/common/ProgressSteps';
 import { transformToCrayon } from '@/services/image-transform';
+import Svg, { Path } from 'react-native-svg';
 
-const WRITE_STEPS = ['사진', 'AI분석', '상황', '스타일', '썸네일', 'AI일기', '수정'];
-const PREVIEW_SIZE = Math.min(Dimensions.get('window').width - 48, 280);
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-const STYLE_ITEMS = [
-  { id: 'original', label: '원본 사진' },
-  { id: 'crayon', label: '크레파스 드로잉' },
-];
-
-const TARGET_ITEMS = [
-  { id: 'diary', label: '일기 이미지만' },
-  { id: 'thumbnail', label: '캘린더 썸네일만' },
-  { id: 'both', label: '둘 다 적용' },
-];
+function CloseIcon({ size = 24, color = '#FFF' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 export default function ImageStyleScreen() {
   const { imageUri, styledImageUri, setStyledImageUri, imageStyle, setImageStyle, imageStyleTarget, setImageStyleTarget } = useWrite();
   const [transforming, setTransforming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 탭 상태: 'diary' | 'thumbnail'
+  const [activeTab, setActiveTab] = useState<'diary' | 'thumbnail'>(
+    imageStyleTarget === 'thumbnail' ? 'thumbnail' : 'diary'
+  );
 
   async function handleStyleChange(styleId: string) {
     setImageStyle(styleId as any);
@@ -62,136 +65,337 @@ export default function ImageStyleScreen() {
     }
   }
 
+  function handleTabChange(tab: 'diary' | 'thumbnail') {
+    setActiveTab(tab);
+    if (tab === 'diary') {
+      setImageStyleTarget('diary');
+    } else {
+      setImageStyleTarget('thumbnail');
+    }
+  }
+
+  function handleNext() {
+    router.push('/write/thumbnail');
+  }
+
   const displayUri = imageStyle === 'crayon' && styledImageUri ? styledImageUri : imageUri;
+  const isOriginal = imageStyle === 'original';
+  const isCrayon = imageStyle === 'crayon';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ProgressSteps steps={WRITE_STEPS} currentStep={3} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← 이전</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+          <CloseIcon />
         </TouchableOpacity>
 
-        <Text style={styles.title}>이미지 스타일</Text>
-
-        {/* 미리보기 */}
-        <View style={styles.previewContainer}>
-          {transforming ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color="#E88D67" />
-              <Text style={styles.loadingText}>크레파스 드로잉으로 변환 중...</Text>
-              <Text style={styles.loadingSubtext}>30초 정도 걸릴 수 있어요</Text>
-            </View>
-          ) : displayUri ? (
-            <View style={styles.previewWrap}>
-              <Image
-                source={{ uri: displayUri }}
-                style={styles.previewImage}
-                contentFit="cover"
-              />
-              <Text style={styles.previewLabel}>
-                {imageStyle === 'original' ? '원본' : '크레파스 드로잉'}
-              </Text>
-            </View>
-          ) : null}
+        {/* Tab: 일기 이미지 / 캘린더 썸네일 */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'diary' && styles.tabActive]}
+            onPress={() => handleTabChange('diary')}
+          >
+            <Text style={[styles.tabText, activeTab === 'diary' && styles.tabTextActive]}>
+              일기 이미지
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'thumbnail' && styles.tabActive]}
+            onPress={() => handleTabChange('thumbnail')}
+          >
+            <Text style={[styles.tabText, activeTab === 'thumbnail' && styles.tabTextActive]}>
+              캘린더 썸네일
+            </Text>
+          </TouchableOpacity>
         </View>
 
+        <View style={styles.headerBtn} />
+      </View>
+
+      {/* 이미지 프리뷰 (화면 대부분) */}
+      <View style={styles.previewArea}>
+        {transforming ? (
+          <View style={styles.transformingOverlay}>
+            <ActivityIndicator size="large" color="#E88D67" />
+            <Text style={styles.transformingText}>크레파스 드로잉으로 변환 중...</Text>
+            <Text style={styles.transformingSub}>30초 정도 걸릴 수 있어요</Text>
+          </View>
+        ) : displayUri ? (
+          <Image
+            source={{ uri: displayUri }}
+            style={styles.previewImage}
+            contentFit="contain"
+          />
+        ) : null}
+
+        {/* 스타일 라벨 */}
+        {!transforming && (
+          <View style={styles.styleLabelWrap}>
+            <Text style={styles.styleLabel}>
+              {isOriginal ? '📷 원본 사진' : '🖍️ 크레파스 드로잉'}
+            </Text>
+          </View>
+        )}
+
+        {/* 에러 */}
         {error && (
-          <View style={styles.errorBox}>
+          <View style={styles.errorOverlay}>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
-              <Text style={styles.retryBtnText}>다시 시도</Text>
+              <Text style={styles.retryText}>다시 시도</Text>
             </TouchableOpacity>
           </View>
         )}
-
-        {/* 원본/크레파스 비교 (변환 완료 시) */}
-        {styledImageUri && !transforming && (
-          <View style={styles.compareRow}>
-            <TouchableOpacity
-              style={[styles.compareCard, imageStyle === 'original' && styles.compareCardActive]}
-              onPress={() => setImageStyle('original')}
-            >
-              <Image source={{ uri: imageUri! }} style={styles.compareImage} contentFit="cover" />
-              <Text style={styles.compareLabel}>원본</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.compareCard, imageStyle === 'crayon' && styles.compareCardActive]}
-              onPress={() => setImageStyle('crayon')}
-            >
-              <Image source={{ uri: styledImageUri }} style={styles.compareImage} contentFit="cover" />
-              <Text style={styles.compareLabel}>크레파스</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!styledImageUri && !transforming && (
-          <ChipSelector
-            label="스타일 선택"
-            items={STYLE_ITEMS}
-            selected={imageStyle}
-            onSelect={handleStyleChange}
-          />
-        )}
-
-        <ChipSelector
-          label="적용 위치"
-          items={TARGET_ITEMS}
-          selected={imageStyleTarget}
-          onSelect={(id) => setImageStyleTarget(id as any)}
-        />
-      </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <Button
-          title="다음"
-          onPress={() => router.push('/write/thumbnail')}
-          fullWidth
-          disabled={transforming}
-        />
       </View>
+
+      {/* 하단 도구 바 */}
+      <View style={styles.bottomToolbar}>
+        {/* 스타일 선택 버튼들 */}
+        <View style={styles.toolRow}>
+          <TouchableOpacity
+            style={[styles.toolItem, isOriginal && styles.toolItemActive]}
+            onPress={() => handleStyleChange('original')}
+          >
+            <View style={[styles.toolIcon, isOriginal && styles.toolIconActive]}>
+              <Text style={styles.toolEmoji}>📷</Text>
+            </View>
+            <Text style={[styles.toolLabel, isOriginal && styles.toolLabelActive]}>원본</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toolItem, isCrayon && styles.toolItemActive]}
+            onPress={() => handleStyleChange('crayon')}
+          >
+            <View style={[styles.toolIcon, isCrayon && styles.toolIconActive]}>
+              <Text style={styles.toolEmoji}>🖍️</Text>
+            </View>
+            <Text style={[styles.toolLabel, isCrayon && styles.toolLabelActive]}>크레파스</Text>
+          </TouchableOpacity>
+
+          {styledImageUri && (
+            <TouchableOpacity
+              style={styles.toolItem}
+              onPress={handleRetry}
+            >
+              <View style={styles.toolIcon}>
+                <Text style={styles.toolEmoji}>🔄</Text>
+              </View>
+              <Text style={styles.toolLabel}>재생성</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 다음 버튼 */}
+        <TouchableOpacity
+          style={[styles.nextBtn, transforming && styles.nextBtnDisabled]}
+          onPress={handleNext}
+          disabled={transforming}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.nextBtnText}>다음</Text>
+          <Text style={styles.nextBtnArrow}>→</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 하단 SafeArea 패딩 */}
+      <View style={styles.bottomSafe} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAF6F0' },
-  content: { padding: 20, paddingBottom: 100 },
-  backBtn: { marginTop: 12, marginBottom: 8 },
-  backText: { fontSize: 15, color: '#E88D67', fontFamily: 'Gaegu_700Bold' },
-  title: { fontSize: 24, fontFamily: 'Gaegu_700Bold', color: '#5D4E3C', textAlign: 'center', marginBottom: 20 },
+  safeArea: { flex: 1, backgroundColor: '#1A1A1A' },
 
-  previewContainer: { marginBottom: 20, alignItems: 'center' },
-  previewWrap: { alignItems: 'center' },
-  previewImage: { width: PREVIEW_SIZE, height: PREVIEW_SIZE, borderRadius: 16, backgroundColor: '#F5EDE4' },
-  previewLabel: { fontSize: 14, fontFamily: 'Gaegu_700Bold', color: '#5D4E3C', marginTop: 8 },
-
-  loadingWrap: {
-    width: PREVIEW_SIZE, height: PREVIEW_SIZE,
-    borderRadius: 16, backgroundColor: '#FFF8F2',
-    borderWidth: 1.5, borderColor: '#E8DDD0', borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center',
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    height: 50,
   },
-  loadingText: { fontSize: 15, fontFamily: 'Gaegu_700Bold', color: '#5D4E3C', marginTop: 14 },
-  loadingSubtext: { fontSize: 13, fontFamily: 'Gaegu_400Regular', color: '#B0A090', marginTop: 4 },
-
-  errorBox: {
-    backgroundColor: '#FFF0E5', borderRadius: 12, padding: 14,
-    marginBottom: 16, alignItems: 'center',
+  headerBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  errorText: { fontSize: 13, color: '#D06030', fontFamily: 'Gaegu_400Regular', textAlign: 'center', marginBottom: 10 },
-  retryBtn: { backgroundColor: '#E88D67', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 8 },
-  retryBtnText: { color: '#FFF', fontFamily: 'Gaegu_700Bold', fontSize: 14 },
 
-  compareRow: { flexDirection: 'row', gap: 12, marginBottom: 20, justifyContent: 'center' },
-  compareCard: {
-    borderRadius: 12, borderWidth: 2, borderColor: '#E8DDD0',
-    overflow: 'hidden', alignItems: 'center', paddingBottom: 8,
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#333',
+    borderRadius: 20,
+    padding: 3,
   },
-  compareCardActive: { borderColor: '#E88D67' },
-  compareImage: { width: (PREVIEW_SIZE - 12) / 2, height: (PREVIEW_SIZE - 12) / 2, borderRadius: 10 },
-  compareLabel: { fontSize: 13, fontFamily: 'Gaegu_700Bold', color: '#5D4E3C', marginTop: 6 },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 17,
+  },
+  tabActive: {
+    backgroundColor: '#E88D67',
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: 'Gaegu_700Bold',
+    color: '#999',
+  },
+  tabTextActive: {
+    color: '#FFF',
+  },
 
-  bottomBar: { padding: 16, borderTopWidth: 1, borderTopColor: '#F0E8DD', backgroundColor: '#FAF6F0' },
+  // Preview
+  previewArea: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+  },
+  styleLabelWrap: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  styleLabel: {
+    color: '#FFF',
+    fontSize: 13,
+    fontFamily: 'Gaegu_700Bold',
+  },
+
+  // Transform overlay
+  transformingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  transformingText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Gaegu_700Bold',
+    marginTop: 16,
+  },
+  transformingSub: {
+    color: '#AAA',
+    fontSize: 13,
+    fontFamily: 'Gaegu_400Regular',
+    marginTop: 4,
+  },
+
+  // Error overlay
+  errorOverlay: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(200, 60, 30, 0.9)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    maxWidth: SCREEN_WIDTH - 48,
+  },
+  errorText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontFamily: 'Gaegu_400Regular',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  retryBtn: {
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  retryText: {
+    color: '#D04020',
+    fontFamily: 'Gaegu_700Bold',
+    fontSize: 13,
+  },
+
+  // Bottom toolbar
+  bottomToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: '#333',
+  },
+  toolRow: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  toolItem: {
+    alignItems: 'center',
+    opacity: 0.7,
+  },
+  toolItemActive: {
+    opacity: 1,
+  },
+  toolIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolIconActive: {
+    backgroundColor: '#3A3A3A',
+    borderWidth: 2,
+    borderColor: '#E88D67',
+  },
+  toolEmoji: {
+    fontSize: 20,
+  },
+  toolLabel: {
+    fontSize: 11,
+    fontFamily: 'Gaegu_700Bold',
+    color: '#888',
+    marginTop: 4,
+  },
+  toolLabelActive: {
+    color: '#E88D67',
+  },
+
+  // Next button
+  nextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#5B6BF5',
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  nextBtnDisabled: {
+    opacity: 0.4,
+  },
+  nextBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontFamily: 'Gaegu_700Bold',
+  },
+  nextBtnArrow: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Gaegu_700Bold',
+  },
+
+  bottomSafe: {
+    height: Platform.OS === 'web' ? 8 : 24,
+    backgroundColor: '#1A1A1A',
+  },
 });

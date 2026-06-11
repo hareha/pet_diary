@@ -15,25 +15,18 @@ import ChipSelector from '@/components/common/ChipSelector';
 import Button from '@/components/common/Button';
 import ProgressSteps from '@/components/common/ProgressSteps';
 
-const WRITE_STEPS = ['사진', 'AI분석', '상황', '스타일', '썸네일', 'AI일기', '수정'];
+const WRITE_STEPS = ['사진', 'AI분석', '스타일', '썸네일', 'AI일기', '수정'];
 
-const TONE_ITEMS = [
-  { id: 'emotional', label: '감성글' },
-  { id: 'funny', label: '웃긴글' },
-  { id: 'daily', label: '일상글' },
-];
 
 export default function EditScreen() {
   const write = useWrite();
   const { pet, guardian } = usePet();
   const [editText, setEditText] = useState(write.diaryText);
   const [editMemo, setEditMemo] = useState(write.memo);
-  const [editTone, setEditTone] = useState(write.tone);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  async function handleRegenerateWithTone(newTone: string) {
-    setEditTone(newTone as any);
+  async function handleRegenerate() {
     setRegenerating(true);
     try {
       const guardianNickname = guardian?.pet_nickname === '직접입력'
@@ -44,7 +37,6 @@ export default function EditScreen() {
         aiAnalysis: write.aiAnalysis,
         situation: write.situation,
         mood: write.mood,
-        tone: newTone,
         memo: editMemo,
         petName: pet?.name,
         guardianNickname,
@@ -84,7 +76,7 @@ export default function EditScreen() {
         mood: write.mood,
         weather: write.weather,
         situation: write.situation,
-        tone: editTone,
+        tone: 'cute-serious',
         memo: editMemo,
         aiAnalysis: write.aiAnalysis,
         keywords: write.situation,
@@ -106,7 +98,7 @@ export default function EditScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ProgressSteps steps={WRITE_STEPS} currentStep={6} />
+        <ProgressSteps steps={WRITE_STEPS} currentStep={5} />
 
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← 이전</Text>
@@ -119,13 +111,16 @@ export default function EditScreen() {
           <Image source={{ uri: write.imageUri }} style={styles.previewImage} contentFit="cover" />
         )}
 
-        {/* 톤 변경 */}
-        <ChipSelector
-          label="톤 변경"
-          items={TONE_ITEMS}
-          selected={editTone}
-          onSelect={(id) => handleRegenerateWithTone(id)}
-        />
+        {/* 재생성 */}
+        <TouchableOpacity
+          style={styles.regenBtn}
+          onPress={handleRegenerate}
+          disabled={regenerating}
+        >
+          <Text style={styles.regenBtnText}>
+            {regenerating ? '재생성 중...' : '🔄 다시 쓰기'}
+          </Text>
+        </TouchableOpacity>
 
         {/* 문장 수정 */}
         <Text style={styles.sectionLabel}>일기 내용</Text>
@@ -179,7 +174,7 @@ const styles = StyleSheet.create({
   diaryInput: {
     backgroundColor: '#FFFFF8', borderWidth: 1.5, borderColor: '#E8DDD0',
     borderRadius: 12, padding: 14, fontSize: 16, color: '#5D4E3C',
-    fontFamily: 'Gaegu_400Regular', minHeight: 150, textAlignVertical: 'top',
+    fontFamily: 'YoonManSeh', minHeight: 150, textAlignVertical: 'top',
     marginBottom: 16, lineHeight: 26,
   },
   memoInput: {
@@ -189,4 +184,17 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: 'row', gap: 12 },
   btn: { flex: 1 },
+  regenBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFF0E5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  regenBtnText: {
+    color: '#E88D67',
+    fontFamily: 'Gaegu_700Bold',
+    fontSize: 14,
+  },
 });

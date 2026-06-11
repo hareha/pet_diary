@@ -8,7 +8,7 @@ import { useWrite } from '@/contexts/write-context';
 import Button from '@/components/common/Button';
 import ProgressSteps from '@/components/common/ProgressSteps';
 
-const WRITE_STEPS = ['사진', 'AI분석', '상황', '스타일', '썸네일', 'AI일기', '수정'];
+const WRITE_STEPS = ['사진', 'AI분석', '스타일', '썸네일', 'AI일기', '수정'];
 
 export default function ThumbnailScreen() {
   const { imageUri, thumbnailUri, setThumbnailUri } = useWrite();
@@ -33,7 +33,7 @@ export default function ThumbnailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ProgressSteps steps={WRITE_STEPS} currentStep={4} />
+        <ProgressSteps steps={WRITE_STEPS} currentStep={3} />
 
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← 이전</Text>

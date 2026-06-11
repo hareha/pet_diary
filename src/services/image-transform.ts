@@ -12,23 +12,31 @@ export async function transformToCrayon(imageUri: string): Promise<string> {
   const { base64, mimeType } = await imageToBase64(imageUri);
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-2.5-flash-image',
     generationConfig: {
       // @ts-ignore - responseModalities is supported but not yet in all type definitions
       responseModalities: ['IMAGE', 'TEXT'],
     },
   });
 
-  const prompt = `이 사진을 어린이 크레파스 그림일기 스타일로 다시 그려주세요.
+  const prompt = `이 사진을 6~7세 어린이가 크레파스로 그린 것 같은 그림일기로 완전히 새로 그려주세요.
 
-규칙:
-1. 크레파스(크레용)로 두껍게 색칠한 느낌으로 변환
-2. 색감은 따뜻하고 밝은 파스텔톤
-3. 선은 굵고 약간 삐뚤빠뚤하게 (어린이가 그린 느낌)
-4. 배경도 크레파스로 칠한 느낌으로
-5. 사진 속 주요 피사체(동물, 사람 등)의 형태는 유지하되 귀엽게 단순화
-6. 스케치북이나 도화지 위에 그린 것처럼 약간의 종이 질감
-7. 이미지만 출력하고 텍스트는 포함하지 마세요`;
+[스타일 규칙]
+- 매우 서툴고 단순한 그림. 사실적이면 안 됨
+- 인물/동물: 큰 머리 + 작은 몸, 점 눈 + 웃는 입, 팔다리는 막대기처럼 단순하게
+- 크레파스 특유의 삐뚤빠뚤한 굵은 선, 색칠은 선 밖으로 나가도 됨
+- 명암 없음, 디테일 없음, 원근감 없음
+- 원본 사진의 색상을 그대로 쓰지 말고, 밝고 선명한 크레파스 색상(빨강, 노랑, 파랑, 초록, 분홍) 사용
+
+[배경]
+- 흰 종이(도화지) 배경
+- 해, 구름, 꽃, 하트, 별, 무지개 등 어린이가 좋아하는 단순한 장식 요소 추가
+- 하늘은 파란 크레파스로 대충 칠한 느낌
+
+[중요]
+- 사진에 필터를 씌우는 것이 아니라, 어린이가 이 사진을 보고 따라 그린 것처럼 완전히 새로운 그림을 그려야 함
+- 글자나 텍스트는 절대 포함하지 마세요
+- 이미지만 출력하세요`;
 
   const result = await model.generateContent([
     prompt,

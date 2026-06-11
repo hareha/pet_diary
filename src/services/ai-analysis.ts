@@ -139,28 +139,39 @@ export async function generateAiDiary(params: {
   aiAnalysis: AiAnalysisResult | null;
   situation: string[];
   mood: string;
-  tone: string;
+  tone?: string;
   memo?: string;
   petName?: string;
   guardianNickname?: string;
   recentDiaries?: string[];
 }): Promise<string> {
   try {
-    const { aiAnalysis, situation, mood, tone, memo, petName, guardianNickname, recentDiaries } = params;
+    const { aiAnalysis, situation, mood, memo, petName, guardianNickname, recentDiaries } = params;
 
     const name = petName || '나';
     const guardian = guardianNickname || '집사';
 
-    const toneGuide: Record<string, string> = {
-      emotional: `감성적이고 따뜻한 톤. ${name}이(가) ${guardian}를 얼마나 사랑하는지, 일상의 소소한 행복을 섬세하게 표현. 마지막은 따뜻한 여운이 남도록.`,
-      funny: `웃기고 엉뚱한 톤. ${name}이(가) 자기만의 세계관으로 상황을 해석. 과장, 억울함, 당당함을 섞어서. "ㅋㅋ", "ㅎㅎ" 같은 표현도 자연스럽게 사용.`,
-      daily: `담백하고 일상적인 톤. ${name}이(가) 짧고 간결하게 하루를 기록. 군더더기 없이 핵심만.`,
-    };
-
     const prompt = `당신은 반려동물 "${name}"입니다. ${name}의 시점에서 오늘 하루 일기를 쓰세요.
 
-[톤/스타일]
-${toneGuide[tone] || toneGuide.emotional}
+[문체: 귀여운 진지체]
+반려동물의 일상 행동을 자기만의 중요한 사건처럼 해석해서, 담담하지만 웃긴 1인칭 일기 톤으로 생성합니다.
+- 진지하고 담백한 문체, 하지만 내용이 귀엽고 웃김
+- 동물이 자기 행동을 매우 중요한 임무/사건처럼 묘사
+- 짧은 문장, ~했다/~한다 체 사용
+- "집사"를 자연스럽게 언급하되, 집사를 부하/동거인 느낌으로 묘사
+
+[문체 예시]
+예시1 (산책 중 냄새 맡는 사진):
+"오늘은 산책길에서 중요한 냄새 자료를 발견했다. ${guardian}는 그냥 지나가자고 했지만, 나는 아직 현장 확인을 마치지 못했다. 냄새마다 사연이 있는데, ${guardian}는 그걸 너무 쉽게 넘긴다."
+
+예시2 (담요에 파묻힌 사진):
+"오늘은 담요의 포근함을 정밀하게 확인했다. ${guardian}는 내가 쉬는 줄 알았지만, 나는 가장 따뜻한 자리를 찾는 중이었다. 왼쪽 구역은 특히 우수했고, 내일도 추가 확인이 필요하다."
+
+예시3 (간식 바라보는 사진):
+"오늘은 간식 지급 가능성을 조용히 살펴보았다. ${guardian}를 오래 바라보면 마음이 움직인다는 사실은 이미 여러 번 확인했다. 이번에도 눈빛 작전은 꽤 성공적일 것 같다."
+
+예시4 (장난감 물고 있는 사진):
+"오늘은 장난감 내구성 검사를 진행했다. 몇 번 물어보고 흔들어본 결과, 아직 쓸 만하다고 판단했다. 다만 더 정확한 검사를 위해 내일도 한 번 더 물어볼 예정이다."
 
 [오늘의 상황]
 - 장소: ${aiAnalysis?.location || '알 수 없음'}
@@ -176,9 +187,9 @@ ${aiAnalysis?.family_members && aiAnalysis.family_members.length > 0 ? `- 함께
 [규칙]
 1. 반드시 ${name}의 1인칭 시점으로 작성
 2. 200~350자 내외
-3. 동물 특유의 관점으로 상황을 재해석 (사람이 쓰는 것처럼 쓰면 안 됨)
-4. 감정과 오감(냄새, 소리, 촉감)을 살려서 생동감 있게
-5. ${guardian}에 대한 언급을 자연스럽게 포함
+3. 위 예시처럼 자기 행동을 진지하게 묘사하되 결과적으로 귀엽고 웃긴 톤
+4. 짧은 문장, ~했다/~한다 체
+5. ${guardian}에 대한 언급을 자연스럽게 포함 (집사를 부하/동거인 취급)
 6. 제목이나 날짜 없이 본문만 작성
 ${recentDiaries && recentDiaries.length > 0 ? `7. 최근 일기와 비슷한 표현 피하기. 최근 일기: ${recentDiaries.slice(0, 2).join(' | ')}` : ''}
 
@@ -197,7 +208,7 @@ ${recentDiaries && recentDiaries.length > 0 ? `7. 최근 일기와 비슷한 표
     // 디버그 로그 저장
     saveAiLog({
       type: 'diary_generate',
-      input: { petName, guardianNickname, tone, mood, situation, memo, aiAnalysis },
+      input: { petName, guardianNickname, tone: 'cute-serious', mood, situation, memo, aiAnalysis },
       output: text,
     });
 

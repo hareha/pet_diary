@@ -11,6 +11,7 @@ export default function RootLayout() {
     Gaegu_300Light,
     Gaegu_400Regular,
     Gaegu_700Bold,
+    YoonManSeh: require('../../assets/fonts/otf/YoonChildfundkoreaManSeh.otf'),
   });
 
   if (!fontsLoaded) {

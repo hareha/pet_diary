@@ -8,7 +8,7 @@ import { generateAiDiary } from '@/services/ai-analysis';
 import Button from '@/components/common/Button';
 import ProgressSteps from '@/components/common/ProgressSteps';
 
-const WRITE_STEPS = ['사진', 'AI분석', '상황', '스타일', '썸네일', 'AI일기', '수정'];
+const WRITE_STEPS = ['사진', 'AI분석', '스타일', '썸네일', 'AI일기', '수정'];
 
 export default function AiDiaryScreen() {
   const write = useWrite();
@@ -62,7 +62,7 @@ export default function AiDiaryScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ProgressSteps steps={WRITE_STEPS} currentStep={5} />
+        <ProgressSteps steps={WRITE_STEPS} currentStep={4} />
 
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← 이전</Text>
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0E5', paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 8, alignSelf: 'flex-start', marginBottom: 12,
   },
-  diaryText: { fontSize: 17, color: '#5D4E3C', fontFamily: 'Gaegu_400Regular', lineHeight: 28 },
+  diaryText: { fontSize: 17, color: '#5D4E3C', fontFamily: 'YoonManSeh', lineHeight: 28 },
   infoRow: { marginTop: 16, gap: 6 },
   infoLabel: { fontSize: 13, color: '#B0A090', fontFamily: 'Gaegu_400Regular' },
   actions: { flexDirection: 'row', gap: 12, marginTop: 24 },

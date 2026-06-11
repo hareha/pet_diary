@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { CalendarIcon, WriteIcon, MypageIcon } from '@/components/common/TabIcons';
+import { CalendarIcon, MypageIcon } from '@/components/common/TabIcons';
 
 export default function TabsLayout() {
   return (
@@ -38,10 +38,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="write"
         options={{
-          title: '쓰기',
-          tabBarIcon: ({ focused }) => (
-            <WriteIcon size={22} color={focused ? '#E88D67' : '#B0A090'} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -56,3 +53,4 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+

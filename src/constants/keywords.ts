@@ -27,8 +27,6 @@ export const KEYWORD_CATEGORIES: KeywordCategory[] = [
       { id: 'cloudy', label: '흐림', emoji: '' },
       { id: 'rainy', label: '비', emoji: '' },
       { id: 'snowy', label: '눈', emoji: '' },
-      { id: 'hot', label: '더움', emoji: '' },
-      { id: 'cold', label: '추움', emoji: '' },
     ],
   },
   {

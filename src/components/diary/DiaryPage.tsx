@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   gridChar: {
     fontSize: 13,
     color: '#3D3028',
-    fontFamily: 'Gaegu_400Regular',
+    fontFamily: 'YoonManSeh',
   },
   tagsRow: {
     flexDirection: 'row',
